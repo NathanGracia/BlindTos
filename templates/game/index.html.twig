@@ -1,0 +1,465 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello GameController!{% endblock %}
+
+{% block javascripts %}   <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+{% endblock %}
+{% block body %}
+    <style>
+        .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+        .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            background: black;
+        }
+
+
+        .container {
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .countdown {
+            display: block;
+            width: 66vmin;
+            height: 66vmin;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            font-family: 'Oswald', sans-serif;
+            font-weight: 400;
+            font-size: 25vmin;
+
+            border-radius: 50%;
+            overflow: hidden;
+
+            transition: width, height, border-radius, font-size;
+            transition-duration: 0.2s;
+        }
+        .--ended {
+             animation: buzz 0.5s;
+         }
+
+
+
+        @keyframes buzz {
+            0% {
+                transform: rotate(0);
+            }
+
+            10%, 30%, 50%, 70%, 90% {
+                transform: rotate(6deg);
+            }
+
+            20%, 40%, 60%, 80% {
+                transform: rotate(-6deg);
+            }
+
+            100% {
+                transform: rotate(0);
+            }
+        }
+
+        .--wide {
+             width: 100%;
+             height: 100%;
+
+             font-size: 50vmin;
+
+             border-radius: 0;
+         }
+
+        .countdown--wide {
+            width: 100%;
+            height: 100%;
+
+            font-size: 50vmin;
+
+            border-radius: 0;
+        }
+
+        .__fill {
+             display: block;
+             width: 100%;
+             height: 100%;
+             position: absolute;
+             left: 0;
+             bottom: 0;
+
+             background: #320b54;
+             opacity: 1;
+         }
+        .countdown__fill {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+
+            background: #320b54;
+            opacity: 1;
+        }
+
+        .__digit {
+             width: 100%;
+
+             color: #320b54;
+             text-align: center;
+             mix-blend-mode: difference;
+             pointer-events: none;
+             user-select: none;
+         }
+        .countdown__digit {
+            width: 100%;
+
+            color: #320b54;
+            text-align: center;
+            mix-blend-mode: difference;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .__buttons {
+             position: absolute;
+             right: 50px;
+             top: 50%;
+             height: 200px;
+             margin-top: -100px;
+             color: white;
+             z-index: 1;
+         }
+
+        .__button {
+             height: 50%;
+         }
+
+
+        .full-button {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            padding: 1em 0.5em 0.5em 2em;
+
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
+            color: white;
+
+            cursor: pointer;
+        }
+
+        .controls {
+            position: fixed; /* Maintient la div à une position fixe par rapport à la fenêtre */
+            bottom: 0; /* Place la div au bas de l'écran */
+            right: 0; /* Place la div à droite de l'écran */
+            width: calc(20vw); /* Calcule la hauteur restante de la fenêtre du navigateur */
+            height: auto; /* Ajuste la hauteur automatiquement */
+            background-color: rgba(11, 11, 77, 0.9); /* Couleur de fond bleu foncé */
+            color: white; /* Couleur du texte blanche */
+            justify-content: center; /* Centre le contenu horizontalement */
+            align-items: center; /* Centre le contenu verticalement */
+            z-index: 9999; /* Assure que la div est au-dessus de tout */
+            padding: 20px; /* Ajoute un peu de padding pour l'esthétique */
+            border-radius: 10px; /* Bords arrondis */
+            box-shadow: 0 5px 15px rgba(56, 56, 222, 0.3); /* Ombre douce */
+            font-family: 'Roboto', sans-serif; /* Police futuriste */
+            margin-bottom: 50px;
+            margin-right: 50px;
+        }
+
+        .controls #currentAnswer {
+            font-size: 1.2em; /* Taille de la police pour la réponse actuelle */
+            font-weight: bold; /* Texte en gras */
+        }
+
+        .controls #guessHistory {
+            border: 1px solid rgba(255, 255, 255, 0.5); /* Bordure blanche transparente */
+            background-color: rgba(255, 255, 255, 0.1); /* Fond blanc transparent */
+            height: calc(100vh - 250px); /* Calcule la hauteur restante de la fenêtre du navigateur */
+
+
+            overflow-y: auto; /* Affiche la barre de défilement si nécessaire */
+            margin-bottom: 10px; /* Marge inférieure */
+            padding: 10px; /* Espacement interne */
+            color: white;
+        }
+
+        /* Pour cacher la barre de défilement */
+        .controls #guessHistory::-webkit-scrollbar {
+            display: none; /* Cache la barre de défilement sur les navigateurs WebKit (comme Chrome/Safari) */
+        }
+
+        .controls input[type="text"] {
+            padding: 10px; /* Espacement interne */
+            font-size: 1em; /* Taille de la police */
+            border: none; /* Pas de bordure */
+            border-radius: 5px; /* Bords arrondis */
+            margin-right: 10px; /* Marge droite */
+            background-color: black;
+            color: white;
+        }
+        .controls input[type="text"]::placeholder {
+            color: rgba(255, 255, 255, 0.5); /* Couleur du texte de l'indicateur de saisie */
+        }
+
+        .controls button {
+            padding: 10px 20px; /* Espacement interne */
+            font-size: 1em; /* Taille de la police */
+            background-color: #6c0808; /* Couleur de fond rouge */
+            color: white; /* Couleur du texte blanc */
+            border: none; /* Pas de bordure */
+            border-radius: 5px; /* Bords arrondis */
+            cursor: pointer; /* Curseur en main */
+            transition: background-color 0.3s ease; /* Transition en douceur */
+        }
+
+        .controls button:hover {
+            background-color: #940c0c; /* Couleur de fond rouge foncé au survol */
+        }
+
+        /* Styles pour la div contenant l'image */
+        .movie-poster {
+            position: fixed; /* Position fixe par rapport à la fenêtre */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.0); /* Fond semi-transparent pour l'effet de superposition */
+            display: flex; /* Utilise Flexbox pour aligner l'image */
+            justify-content: center; /* Centre horizontalement */
+            align-items: center; /* Centre verticalement */
+            z-index: 5; /* Z-index maximal pour être au-dessus de tout */
+        }
+
+        /* Styles pour l'image */
+        .movie-poster img {
+            position: absolute; /* Position absolue par rapport à la div parente */
+            top: 50%; /* Déplace l'image à 50% de la hauteur de la div parente */
+            left: 50%; /* Déplace l'image à 50% de la largeur de la div parente */
+            transform: translate(-50%, -50%); /* Déplace l'image de moitié de sa propre largeur et hauteur */
+            max-width: 100%; /* Ajuste la taille maximale de l'image à la largeur de la div parente */
+            max-height: 100%; /* Ajuste la taille maximale de l'image à la hauteur de la div parente */
+        }
+
+    </style>
+
+        <!-- HTML -->
+        <div id="playerContainer" style="position: absolute; width: 0; height: 0; overflow: hidden;">
+            <div id="player"></div>
+        </div>
+
+        <div class="container" style="width: 100%">
+            <div class="countdown countdown--wide " id="countdown" style="touch-action: pan-x pan-y; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: rgba(0, 0, 0, 0);">
+                <div class="countdown__fill" id="ticker" style="height: 0%;"></div>
+                <div class="countdown__digit" id="seconds">0</div>
+            </div>
+        </div>
+        <div class="controls" >
+            <div id="currentAnswer" style="margin-top: 10px;"></div>
+
+            <div id="guessHistory" style="border: 1px solid #ccc; overflow-y: scroll; margin-bottom: 10px; padding: 5px;">
+                <!-- Historique des guesses -->
+            </div>
+            <input type="text" id="guessInput" placeholder="Devinez le titre du film">
+            <button id="nextButton">Passer</button>
+            <div id="endMessage" style="display: none;">Fin de la partie !</div>
+        </div>
+    <div class="movie-poster">
+        <img style="display: none; min-height: 500px" src="https://www.francetvinfo.fr/pictures/KI83JKIWxYVA8ng-cUtYxM6l-z8/1200x1200/2016/08/23/shrek-5.jpg" alt="Affiche du film" id="moviePoster">
+    </div>
+
+
+
+
+    <script>
+        var currentSong
+        function showImage(path) {
+            var image = document.getElementById('moviePoster');
+            if (image.style.display === 'none') {
+                image.style.display = 'block';
+                image.src=path;
+            }
+        }
+        function hideImage(){
+            var image = document.getElementById('moviePoster');
+            if (image.style.display === 'block') {
+                image.style.display = 'none';
+            }
+        }
+        document.addEventListener("DOMContentLoaded", function() {
+            // Liste des chansons
+            var allSongs = [
+                {% for song in songs %}
+                { ytId: "{{ song.ytId }}", timecode: {{ song.timecode }}, title: "{{ song.movie.nameEN }}", poster:"{{ song.movie.poster }}" },
+                {% endfor %}
+            ];
+
+            // Copie de la liste des chansons
+            var remainingSongs = allSongs.slice();
+
+            // Fonction pour sélectionner une chanson aléatoire
+            function selectRandomSong() {
+                if (remainingSongs.length === 0) {
+                    return null; // Si toutes les chansons ont été jouées
+                }
+                var randomIndex = Math.floor(Math.random() * remainingSongs.length);
+                var randomSong = remainingSongs[randomIndex];
+                remainingSongs.splice(randomIndex, 1);
+                return randomSong;
+            }
+
+            function addToHistory(text, color = "black") {
+                var guessHistoryDiv = document.getElementById("guessHistory");
+                var guessElement = document.createElement("div");
+                guessElement.textContent = text;
+                guessElement.style.color = color;
+                guessHistoryDiv.appendChild(guessElement);
+                guessHistoryDiv.scrollTop = guessHistoryDiv.scrollHeight; // Défilement automatique vers le bas
+            }
+
+            // Fonction pour charger une chanson dans le lecteur
+            // Fonction pour charger une chanson dans le lecteur
+            function loadSong(song) {
+                var playerDiv = document.getElementById("player");
+                var currentAnswerDiv = document.getElementById("currentAnswer");
+                if (song) {
+                    playerDiv.innerHTML = `
+            <iframe width="420" height="345" style="width: 0; height: 0; opacity: 0; position: absolute;" allow="autoplay" referrerpolicy="no-referrer-when-downgrade" src="http://www.youtube.com/embed/${song.ytId}?start=${song.timecode}&autoplay=1&mute=0" frameborder="0" allowfullscreen></iframe>
+        `;
+                    currentAnswerDiv.innerHTML = `Réponse actuelle : ${song.title}`; // Afficher la réponse
+                } else {
+                    playerDiv.innerHTML = ""; // Pas de chanson à charger
+                    currentAnswerDiv.innerHTML = ""; // Pas de réponse à afficher
+                }
+            }
+
+            // Charger une chanson aléatoire au chargement initial de la page
+            currentSong = selectRandomSong();
+            loadSong(currentSong);
+
+            // Gérer le clic sur le bouton "Chanson suivante"
+            document.getElementById("nextButton").addEventListener("click", function() {
+                var nextSong = selectRandomSong();
+                if (nextSong) {
+                    currentSong = nextSong;
+                    loadSong(nextSong);
+                } else {
+                    // Fin de la partie
+                    document.getElementById("endMessage").style.display = "block";
+                    document.getElementById("player").innerHTML = ""; // Nettoyer le lecteur
+                }
+            });
+
+            // Gérer la soumission du formulaire
+            document.getElementById("guessInput").addEventListener("keydown", function(event) {
+                if (event.key === "Enter") {
+                    var guess = event.target.value.trim();
+
+                    if (guess.toLowerCase() === currentSong.title.toLowerCase()) {
+                        addToHistory(guess, "green");
+
+                        // Le titre entré correspond à celui de la chanson en cours
+                        var nextSong = selectRandomSong();
+                        if (nextSong) {
+                            currentSong = nextSong;
+                            loadSong(nextSong);
+                        } else {
+                            // Fin de la partie
+                            document.getElementById("endMessage").style.display = "block";
+                            document.getElementById("player").innerHTML = ""; // Nettoyer le lecteur
+                        }
+                    } else {
+                        addToHistory(guess);
+                    }
+                    event.target.value = ""; // Réinitialiser le champ de saisie
+                }
+            });
+        });
+        function Timer(duration, element) {
+            var self = this;
+            this.duration = duration;
+            this.element = element;
+            this.running = false;
+
+            this.els = {
+                ticker: document.getElementById('ticker'),
+                seconds: document.getElementById('seconds'),
+            };
+
+
+
+            var hammerHandler = new Hammer(this.element);
+            hammerHandler.get('pan').set({ direction: Hammer.DIRECTION_VERTICAL });
+            hammerHandler.on('panup pandown', function(ev) {
+                if (!self.running) {
+                    if (ev.direction === Hammer.DIRECTION_UP && self.duration < 999000) {
+                        self.setDuration(self.duration + 1000);
+                    } else if (ev.direction === Hammer.DIRECTION_DOWN && self.duration > 0) {
+                        self.setDuration(self.duration - 1000);
+                    }
+                }
+            });
+
+
+        }
+
+        Timer.prototype.start = function() {
+            var self = this;
+            var start = null;
+            this.running = true;
+            var remainingSeconds = this.els.seconds.textContent = this.duration / 1000;
+
+            function draw(now) {
+                if (!start) start = now;
+                var diff = now - start;
+                var newSeconds = Math.ceil((self.duration - diff)/1000);
+
+                if (diff <= self.duration) {
+                    self.els.ticker.style.height = 100 - (diff/self.duration*100) + '%';
+
+                    if (newSeconds != remainingSeconds) {
+                        self.els.seconds.textContent = newSeconds;
+                        remainingSeconds = newSeconds;
+                    }
+
+                    self.frameReq = window.requestAnimationFrame(draw);
+                } else {
+                    //self.running = false;
+                    showImage(currentSong.poster);
+                    self.els.seconds.textContent = 0;
+                    self.els.ticker.style.height = '0%';
+                    self.element.classList.add('countdown--ended');
+
+                }
+            };
+
+            self.frameReq = window.requestAnimationFrame(draw);
+        }
+
+        Timer.prototype.reset = function() {
+            this.running = false;
+            window.cancelAnimationFrame(this.frameReq);
+            this.els.seconds.textContent = this.duration / 1000;
+            this.els.ticker.style.height = null;
+            this.element.classList.remove('countdown--ended');
+        }
+
+        Timer.prototype.setDuration = function(duration) {
+            this.duration = duration;
+            this.els.seconds.textContent = this.duration / 1000;
+        }
+
+        var timer = new Timer(10000, document.getElementById('countdown'));
+        timer.start();
+    </script>
+{% endblock %}
