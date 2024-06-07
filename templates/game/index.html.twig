@@ -254,7 +254,7 @@
     </style>
 
         <!-- HTML -->
-        <div id="playerContainer" style="position: absolute; width: 0; height: 0; overflow: hidden;">
+        <div id="playerContainer" style="position: absolute; width: 200; height: 200; overflow: ;">
             <div id="player"></div>
         </div>
 
@@ -282,21 +282,14 @@
 
 
     <script>
-        var currentSong
-        function showImage(path) {
-            var image = document.getElementById('moviePoster');
-            if (image.style.display === 'none') {
-                image.style.display = 'block';
-                image.src=path;
-            }
-        }
-        function hideImage(){
-            var image = document.getElementById('moviePoster');
-            if (image.style.display === 'block') {
-                image.style.display = 'none';
-            }
-        }
+
+
         document.addEventListener("DOMContentLoaded", function() {
+            console.log("chargement de la page DONE")
+            var currentSong
+            var timer = new Timer(10000, document.getElementById('countdown'));
+            var gameOn = true;
+
             // Liste des chansons
             var allSongs = [
                 {% for song in songs %}
@@ -307,17 +300,133 @@
             // Copie de la liste des chansons
             var remainingSongs = allSongs.slice();
 
+            function loadIframe(url) {
+                document.getElementById('player').innerHTML = "";
+                var iframe = document.createElement('iframe');
+                iframe.width = "0";
+                iframe.height = "0";
+                iframe.src = url;
+                iframe.frameBorder = "0";
+                iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+                iframe.allowFullscreen = true;
+                iframe.referrerPolicy = "no-referrer-when-downgrade"
+
+                // Add the onload event listener
+                iframe.onload = function() {
+                    console.log("Iframe has loaded.");
+                    // Start the timer or any other actions you want to perform after the iframe has loaded
+                    timer.start();
+                };
+
+                // Append the iframe to the player div
+                document.getElementById('player').appendChild(iframe);
+            }
             // Fonction pour sélectionner une chanson aléatoire
-            function selectRandomSong() {
-                if (remainingSongs.length === 0) {
-                    return null; // Si toutes les chansons ont été jouées
-                }
-                var randomIndex = Math.floor(Math.random() * remainingSongs.length);
-                var randomSong = remainingSongs[randomIndex];
-                remainingSongs.splice(randomIndex, 1);
-                return randomSong;
+            function Timer(duration, element) {
+                var self = this;
+                this.duration = duration;
+                this.element = element;
+                this.running = false;
+
+                this.els = {
+                    ticker: document.getElementById('ticker'),
+                    seconds: document.getElementById('seconds'),
+                };
+
+
+
+                var hammerHandler = new Hammer(this.element);
+                hammerHandler.get('pan').set({ direction: Hammer.DIRECTION_VERTICAL });
+                hammerHandler.on('panup pandown', function(ev) {
+                    if (!self.running) {
+                        if (ev.direction === Hammer.DIRECTION_UP && self.duration < 999000) {
+                            self.setDuration(self.duration + 1000);
+                        } else if (ev.direction === Hammer.DIRECTION_DOWN && self.duration > 0) {
+                            self.setDuration(self.duration - 1000);
+                        }
+                    }
+                });
+
+
             }
 
+            Timer.prototype.start = function() {
+                console.log("Timer started ")
+                var self = this;
+                var start = null;
+                this.running = true;
+                var remainingSeconds = this.els.seconds.textContent = this.duration / 1000;
+
+                function draw(now) {
+                    if (!start) start = now;
+                    var diff = now - start;
+                    var newSeconds = Math.ceil((self.duration - diff)/1000);
+
+                    if (diff <= self.duration) {
+                        self.els.ticker.style.height = 100 - (diff/self.duration*100) + '%';
+
+                        if (newSeconds != remainingSeconds) {
+                            self.els.seconds.textContent = newSeconds;
+                            remainingSeconds = newSeconds;
+                        }
+
+                        self.frameReq = window.requestAnimationFrame(draw);
+                    } else {
+                        if(self.running){
+                            console.log('Fin du timer')
+                            self.running = false;
+                            showImage();
+                            self.els.seconds.textContent = 0;
+                            self.els.ticker.style.height = '0%';
+                            self.element.classList.add('countdown--ended');
+                            setTimeout(function() {
+                                console.log(('5 secondes passées, go next'))
+                                nextSong()
+                            }, 5000);
+                        }
+
+
+                    }
+                };
+
+                self.frameReq = window.requestAnimationFrame(draw);
+            }
+
+            Timer.prototype.reset = function() {
+                this.running = false;
+                window.cancelAnimationFrame(this.frameReq);
+                this.els.seconds.textContent = this.duration / 1000;
+                this.els.ticker.style.height = null;
+                this.element.classList.remove('countdown--ended');
+            }
+
+            Timer.prototype.setDuration = function(duration) {
+                this.duration = duration;
+                this.els.seconds.textContent = this.duration / 1000;
+            }
+            function showImage() {
+                var image = document.getElementById('moviePoster');
+                if (image.style.display === 'none') {
+                    image.style.display = 'block';
+                    image.src=currentSong.poster;
+                }
+            }
+            function hideImage(){
+                var image = document.getElementById('moviePoster');
+                if (image.style.display === 'block') {
+                    image.style.display = 'none';
+                }
+            }
+            function selectRandomSong(songs) {
+                console.log("select")
+                if (songs.length === 0) {
+                    return null; // Si toutes les chansons ont été jouées
+                }
+                var randomIndex = Math.floor(Math.random() * songs.length);
+                var randomSong = songs[randomIndex];
+                songs.splice(randomIndex, 1);
+                return randomSong;
+            }
             function addToHistory(text, color = "black") {
                 var guessHistoryDiv = document.getElementById("guessHistory");
                 var guessElement = document.createElement("div");
@@ -330,12 +439,14 @@
             // Fonction pour charger une chanson dans le lecteur
             // Fonction pour charger une chanson dans le lecteur
             function loadSong(song) {
+                console.log("Loading du song")
                 var playerDiv = document.getElementById("player");
                 var currentAnswerDiv = document.getElementById("currentAnswer");
                 if (song) {
-                    playerDiv.innerHTML = `
-            <iframe width="420" height="345" style="width: 0; height: 0; opacity: 0; position: absolute;" allow="autoplay" referrerpolicy="no-referrer-when-downgrade" src="http://www.youtube.com/embed/${song.ytId}?start=${song.timecode}&autoplay=1&mute=0" frameborder="0" allowfullscreen></iframe>
-        `;
+                    ytId = song.ytId
+                    timecode = song.timecode
+                    url = "http://www.youtube.com/embed/" +ytId+"?start=" +timecode +"&autoplay=1&mute=0"
+                    loadIframe(url)
                     currentAnswerDiv.innerHTML = `Réponse actuelle : ${song.title}`; // Afficher la réponse
                 } else {
                     playerDiv.innerHTML = ""; // Pas de chanson à charger
@@ -343,22 +454,10 @@
                 }
             }
 
-            // Charger une chanson aléatoire au chargement initial de la page
-            currentSong = selectRandomSong();
-            loadSong(currentSong);
+
 
             // Gérer le clic sur le bouton "Chanson suivante"
-            document.getElementById("nextButton").addEventListener("click", function() {
-                var nextSong = selectRandomSong();
-                if (nextSong) {
-                    currentSong = nextSong;
-                    loadSong(nextSong);
-                } else {
-                    // Fin de la partie
-                    document.getElementById("endMessage").style.display = "block";
-                    document.getElementById("player").innerHTML = ""; // Nettoyer le lecteur
-                }
-            });
+            //document.getElementById("nextButton").addEventListener("click", nextSong());
 
             // Gérer la soumission du formulaire
             document.getElementById("guessInput").addEventListener("keydown", function(event) {
@@ -367,99 +466,36 @@
 
                     if (guess.toLowerCase() === currentSong.title.toLowerCase()) {
                         addToHistory(guess, "green");
-
-                        // Le titre entré correspond à celui de la chanson en cours
-                        var nextSong = selectRandomSong();
-                        if (nextSong) {
-                            currentSong = nextSong;
-                            loadSong(nextSong);
-                        } else {
-                            // Fin de la partie
-                            document.getElementById("endMessage").style.display = "block";
-                            document.getElementById("player").innerHTML = ""; // Nettoyer le lecteur
-                        }
                     } else {
                         addToHistory(guess);
                     }
                     event.target.value = ""; // Réinitialiser le champ de saisie
                 }
             });
-        });
-        function Timer(duration, element) {
-            var self = this;
-            this.duration = duration;
-            this.element = element;
-            this.running = false;
-
-            this.els = {
-                ticker: document.getElementById('ticker'),
-                seconds: document.getElementById('seconds'),
-            };
 
 
+            function nextSong(){
+                console.log(remainingSongs)
+                hideImage()
 
-            var hammerHandler = new Hammer(this.element);
-            hammerHandler.get('pan').set({ direction: Hammer.DIRECTION_VERTICAL });
-            hammerHandler.on('panup pandown', function(ev) {
-                if (!self.running) {
-                    if (ev.direction === Hammer.DIRECTION_UP && self.duration < 999000) {
-                        self.setDuration(self.duration + 1000);
-                    } else if (ev.direction === Hammer.DIRECTION_DOWN && self.duration > 0) {
-                        self.setDuration(self.duration - 1000);
-                    }
-                }
-            });
-
-
-        }
-
-        Timer.prototype.start = function() {
-            var self = this;
-            var start = null;
-            this.running = true;
-            var remainingSeconds = this.els.seconds.textContent = this.duration / 1000;
-
-            function draw(now) {
-                if (!start) start = now;
-                var diff = now - start;
-                var newSeconds = Math.ceil((self.duration - diff)/1000);
-
-                if (diff <= self.duration) {
-                    self.els.ticker.style.height = 100 - (diff/self.duration*100) + '%';
-
-                    if (newSeconds != remainingSeconds) {
-                        self.els.seconds.textContent = newSeconds;
-                        remainingSeconds = newSeconds;
-                    }
-
-                    self.frameReq = window.requestAnimationFrame(draw);
+                var nextSong = selectRandomSong(remainingSongs);
+                if (nextSong) {
+                    currentSong = nextSong;
+                    loadSong(nextSong);
+                    // timer.start()
                 } else {
-                    //self.running = false;
-                    showImage(currentSong.poster);
-                    self.els.seconds.textContent = 0;
-                    self.els.ticker.style.height = '0%';
-                    self.element.classList.add('countdown--ended');
-
+                    // Fin de la partie
+                    document.getElementById("endMessage").style.display = "block";
+                    document.getElementById("player").innerHTML = ""; // Nettoyer le lecteur
+                    gameOn= false;
                 }
-            };
 
-            self.frameReq = window.requestAnimationFrame(draw);
-        }
+            }
 
-        Timer.prototype.reset = function() {
-            this.running = false;
-            window.cancelAnimationFrame(this.frameReq);
-            this.els.seconds.textContent = this.duration / 1000;
-            this.els.ticker.style.height = null;
-            this.element.classList.remove('countdown--ended');
-        }
+            // Charger une chanson aléatoire au chargement initial de la page
+            currentSong = selectRandomSong(remainingSongs);
+            loadSong(currentSong);
+        });
 
-        Timer.prototype.setDuration = function(duration) {
-            this.duration = duration;
-            this.els.seconds.textContent = this.duration / 1000;
-        }
-
-        var timer = new Timer(10000, document.getElementById('countdown'));
-        timer.start();
     </script>
 {% endblock %}
